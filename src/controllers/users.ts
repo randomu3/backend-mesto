@@ -2,14 +2,20 @@
 // это файл контроллеров
 import { Request, Response } from "express";
 import User from "../models/user";
+import validator from "validator";
+import bcrypt from "bcrypt";
 
 export const createUser = (req: Request, res: Response) => {
-  const { name, about, avatar } = req.body;
-  if (name && about && avatar) {
-    return User.create({ name, about, avatar })
+  const { name, about, avatar, email, password } = req.body;
+
+  if (validator.isEmail(email) && password) {
+    // хешируем пароль
+    const hash = bcrypt.hash(password, 10)
+    return User.create({ name, about, avatar, email, hash })
       .then((user) => res.send({ data: user }))
       .catch((err) => res.status(500).send({ message: "Произошла ошибка" }));
   }
+
   return res.status(400).send({
     message: "Переданы некорректные данные при создании пользователя",
   });
@@ -101,3 +107,7 @@ export const updateAvatar = (req: Request, res: Response) => {
   }
   return res.status(400).send({ message: "Переданы некорректные данные при обновлении аватара" })
 };
+
+// export const login = (req: Request, res: Response) => {
+//   const { email, password } = req.body
+// }
