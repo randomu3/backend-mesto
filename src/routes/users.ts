@@ -1,17 +1,17 @@
 // routes/users.ts
 // это файл маршрутов
 import { Router } from "express";
-import { createUser, getUser, getUsers, updateAvatar, updateUser } from "../controllers/users";
+import { validateGetProfile, validateUpdateAvatar, validateUpdateUser } from "../middlewares/validateUser";
+import { getCurrentUser, getProfile, getUsers, updateAvatar, updateUser } from "../controllers/users";
 
 const router = Router();
 
-// users
-router.post("/", createUser);
-router.get("/:userId", getUser);
-router.get("/", getUsers);
+router.get("/me", getCurrentUser);
 
-// options
-router.patch("/me", updateUser);
-router.patch("/me/avatar", updateAvatar);
+router.patch("/me", validateUpdateUser, updateUser);
+router.patch("/me/avatar", validateUpdateAvatar, updateAvatar);
+
+router.get("/", getUsers);
+router.get("/:userId", validateGetProfile, getProfile);
 
 export default router

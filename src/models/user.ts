@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import bcrypt from "bcrypt";
 
 interface IUser {
   name: string;
@@ -8,7 +9,11 @@ interface IUser {
   password: string;
 }
 
-const userSchema = new mongoose.Schema<IUser>({
+interface UserModel extends mongoose.Model<IUser> {
+  findUserByCredentials: (email: string, password: string) => Promise<mongoose.Document<unknown, any, IUser>>
+}
+
+const userSchema = new mongoose.Schema<IUser, UserModel>({
   name: {
     type: String,
     minlength: 2,
@@ -37,8 +42,30 @@ const userSchema = new mongoose.Schema<IUser>({
   password: {
     type: String,
     required: true,
-    minlength: 8
+    minlength: 8,
+    select: false // необходимо добавить поле select
   }
 });
 
-export default mongoose.model('user', userSchema)
+// добавим метод findUserByCredentials схеме пользователя
+// у него будет два параметра — почта и пароль
+userSchema.static('findUserByCredentials', function findUserByCredentials(email: string, password: string) {
+  return this.findOne({ email }).select("+password")
+     .then((user) => {
+        if (!user) {
+           return Promise.reject(new Error("Неправильные почта или пароль"))
+        }
+
+        return bcrypt
+           .compare(password, user.password)
+           .then((matched) => {
+              if (!matched) {
+                 return Promise.reject(new Error("Неправильные почта или пароль"))
+              }
+
+              return user
+           })
+     })
+})
+
+export default mongoose.model<IUser, UserModel>('user', userSchema)

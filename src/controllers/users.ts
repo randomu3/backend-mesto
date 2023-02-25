@@ -1,9 +1,11 @@
 // controllers/users.ts
 // это файл контроллеров
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import User from "../models/user";
 import validator from "validator";
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken"; // импортируем модуль
+import { NotFoundError } from "../errors/not-found-err";
 
 export const createUser = (req: Request, res: Response) => {
   const { name, about, avatar, email, password } = req.body;
@@ -21,19 +23,19 @@ export const createUser = (req: Request, res: Response) => {
   });
 };
 
-export const getUser = (req: Request, res: Response) => {
+export const getProfile = (req: Request, res: Response, next: NextFunction) => {
   const { userId } = req.params;
 
   return User.findById(userId)
     .then((user) => {
       if (!user) {
-        return res
-          .status(404)
-          .send({ message: "Пользователь по указанному _id не найден" });
+        // если такого пользователя нет,
+        // сгенерируем исключение
+        throw new NotFoundError('Нет пользователя с таким id');
       }
       res.send({ data: user });
     })
-    .catch((err) => res.status(500).send({ message: "Ошибка по умолчанию" }));
+    .catch(next); // добавили catch
 };
 
 export const getUsers = (req: Request, res: Response) => {
@@ -112,29 +114,34 @@ export const updateAvatar = (req: Request, res: Response) => {
     .send({ message: "Переданы некорректные данные при обновлении аватара" });
 };
 
-// export const login = (req: Request, res: Response) => {
-//   const { email, password } = req.body;
+export const login = (req: Request, res: Response) => {
+  const { email, password } = req.body;
 
-//   return User.findOne({ email })
-//     .then((user) => {
-//       if (!user) {
-//         return Promise.reject(new Error('Неправильные почта или пароль'));
-//       }
+  return User.findUserByCredentials(email, password)
+    .then((user) => {
+      // создадим токен
+      const token = jwt.sign(
+        { _id: user._id },
+        "some-secret-key",
+        { expiresIn: "7d" } // токен будет просрочен через неделю после создания
+      );
 
-//       return bcrypt.compare(password, user.password);
-//     })
-//     .then((matched) => {
-//       if (!matched) {
-//         // хеши не совпали — отклоняем промис
-//         return Promise.reject(new Error('Неправильные почта или пароль'));
-//       }
+      // вернём токен
+      res.send({ token });
+    })
+    .catch((err: any) => {
+      res.status(401).send({ message: `Ошибка. ${err}` });
+    });
+};
 
-//       // аутентификация успешна
-//       res.send({ message: 'Всё верно!' });
-//     })
-//     .catch((err) => {
-//       res
-//         .status(401)
-//         .send({ message: err.message });
-//     });
-// };
+export const getCurrentUser = (req: Request, res: Response) => {
+  const { _id } = req.user
+  return User.findById({ _id })
+    .then((user) => {
+      if (!user) {
+        return res.send(404).send({ message: "Пользователь не найден" });
+      }
+      res.status(200).send({ user })
+    })
+    .catch((err) => res.status(500).send({ message: `Ошибка. ${err}` }));
+}

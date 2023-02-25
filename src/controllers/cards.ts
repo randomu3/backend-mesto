@@ -2,12 +2,14 @@
 // это файл контроллеров
 import { Request, Response } from "express";
 import Card from "../models/card";
+import { celebrate, Joi } from "celebrate";
 
 export const createCard = (req: Request, res: Response) => {
   const { name, link } = req.body;
+  const { _id } = req.user;
 
   if (name && link) {
-    return Card.create({ name, link })
+    return Card.create({ name, link, owner: _id /* используем req.user */ })
       .then((card) => res.send({ data: card }))
       .catch((err) => res.status(500).send({ message: "Произошла ошибка" }));
   }
@@ -19,10 +21,23 @@ export const createCard = (req: Request, res: Response) => {
 export const delCard = (req: Request, res: Response) => {
   const { cardId } = req.params;
 
-  Card.findByIdAndRemove(cardId)
-    .then((card) => res.send({ data: card }))
+  return Card.findByIdAndRemove(cardId)
+    .then((card) => {
+      if (!card) {
+        return res
+          .status(404)
+          .send({ message: "Карточка с указанным _id не найдена" });
+      }
+      if (card.owner.toString() !== req.user._id)
+        return res.status(404).send({
+          message: "Нельзя удалить чужую карточку",
+        });
+      res.status(200).send({ data: card, message: "Карточка успешно удалена" });
+    })
     .catch((err) =>
-      res.status(404).send({ message: "Карточка с указанным _id не найдена" })
+      res
+        .status(500)
+        .send({ message: "Что-то на сервере с карточкой пошло не так" })
     );
 };
 
@@ -48,8 +63,9 @@ export const likeCard = (req: Request, res: Response) => {
             .status(404)
             .send({ message: "Передан несуществующий _id карточки" });
         }
+        res.status(200).send({ message: "Лайк поставлен успешно" });
       })
-      .catch((err) => res.status(500).send({ message: "Ошибка по умолчанию" }));
+      .catch((err) => res.status(500).send({ message: `Ошибка. ${err}` }));
   }
   return res.status(400).send({
     message: "Переданы некорректные данные для постановки/снятии лайка",
@@ -72,6 +88,7 @@ export const dislikeCard = (req: Request, res: Response) => {
             .status(404)
             .send({ message: "Передан несуществующий _id карточки" });
         }
+        res.status(200).send({ message: "Лайк убран успешно" });
       })
       .catch((err) => res.status(500).send({ message: "Ошибка по умолчанию" }));
   }
