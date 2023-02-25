@@ -11,6 +11,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 mongoose.connect("mongodb://localhost:27017/mestodb");
+mongoose.set("strictQuery", true);
 
 app.use((req, res, next) => {
   req.user = {
@@ -27,5 +28,4 @@ app.listen(PORT, () => {
   // Если всё работает, консоль покажет, какой порт приложение слушает
   console.log(`App listening on port ${PORT}`);
 });
-
 // 63f8e330675348ce43a21aa5

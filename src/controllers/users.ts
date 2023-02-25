@@ -10,10 +10,10 @@ export const createUser = (req: Request, res: Response) => {
 
   if (validator.isEmail(email) && password) {
     // хешируем пароль
-    const hash = bcrypt.hash(password, 10)
-    return User.create({ name, about, avatar, email, hash })
+    const hash = bcrypt.hashSync(password, 10);
+    return User.create({ name, about, avatar, email, password: hash })
       .then((user) => res.send({ data: user }))
-      .catch((err) => res.status(500).send({ message: "Произошла ошибка" }));
+      .catch((err) => res.status(500).send({ message: err }));
   }
 
   return res.status(400).send({
@@ -94,9 +94,11 @@ export const updateAvatar = (req: Request, res: Response) => {
     )
       .then((user) => {
         if (!user) {
-          return res.status(404).send({ message: "Пользователь с указанным _id не найден" });
+          return res
+            .status(404)
+            .send({ message: "Пользователь с указанным _id не найден" });
         }
-        res.send({ data: user })
+        res.send({ data: user });
       })
       .catch((avatar) =>
         res.send({
@@ -105,9 +107,34 @@ export const updateAvatar = (req: Request, res: Response) => {
         })
       );
   }
-  return res.status(400).send({ message: "Переданы некорректные данные при обновлении аватара" })
+  return res
+    .status(400)
+    .send({ message: "Переданы некорректные данные при обновлении аватара" });
 };
 
 // export const login = (req: Request, res: Response) => {
-//   const { email, password } = req.body
-// }
+//   const { email, password } = req.body;
+
+//   return User.findOne({ email })
+//     .then((user) => {
+//       if (!user) {
+//         return Promise.reject(new Error('Неправильные почта или пароль'));
+//       }
+
+//       return bcrypt.compare(password, user.password);
+//     })
+//     .then((matched) => {
+//       if (!matched) {
+//         // хеши не совпали — отклоняем промис
+//         return Promise.reject(new Error('Неправильные почта или пароль'));
+//       }
+
+//       // аутентификация успешна
+//       res.send({ message: 'Всё верно!' });
+//     })
+//     .catch((err) => {
+//       res
+//         .status(401)
+//         .send({ message: err.message });
+//     });
+// };
